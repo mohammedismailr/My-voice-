@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, AlertCircle } from 'lucide-react';
+import { Sparkles, AlertCircle, RotateCcw } from 'lucide-react';
 import type { Message, SupportedLanguage, VoiceState } from '../../types';
 import type { CharacterConfig, CharacterId } from '../../types/character';
 import { MessageBubble } from './MessageBubble';
@@ -12,6 +12,7 @@ interface ChatWindowProps {
   isLoadingMessages: boolean;
   isSending: boolean;
   error: string | null;
+  onRetry?: () => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   onSendPrompt: (promptText: string) => void;
   // Voice integration props
@@ -64,6 +65,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   isLoadingMessages,
   isSending,
   error,
+  onRetry,
   messagesEndRef,
   onSendPrompt,
   voiceState,
@@ -206,13 +208,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           )}
 
-          {/* Error Banner */}
+          {/* Error Banner with Retry */}
           {error && (
-            <div className="my-4 flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-200 shadow-lg">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
-              <div className="flex-1">
-                <span className="font-semibold">Error:</span> {error}
+            <div className="my-4 flex items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-200 shadow-lg">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+                <div className="flex-1">
+                  <span className="font-semibold">Error:</span> {error}
+                </div>
               </div>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/25 border border-red-500/40 text-xs font-semibold text-white hover:bg-red-500/40 transition-all cursor-pointer shadow-sm flex-shrink-0"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Retry</span>
+                </button>
+              )}
             </div>
           )}
 

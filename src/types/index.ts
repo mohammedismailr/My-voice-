@@ -81,6 +81,7 @@ export interface ChatApiRequest {
   language: SupportedLanguage;
   inputMode: InputMode;
   model?: string;
+  companionId?: string;
 }
 
 export interface ChatApiResponse {
@@ -89,6 +90,7 @@ export interface ChatApiResponse {
   userMessage?: Message;
   assistantMessage?: Message;
   error?: string;
+  canRetry?: boolean;
 }
 
 export interface VoiceSettings {

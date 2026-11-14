@@ -80,7 +80,9 @@ export const SOFT_VOICE_PROFILES: Record<string, SoftVoiceProfile> = {
  */
 export const MODEL_TO_VOICE_MAP: Record<string, string> = {
   'gemini-3.5-flash-lite': 'soft-warm',
-  'gemini-3.7-flash': 'soft-expressive',
+  'gemini-flash-lite-latest': 'soft-gentle',
+  'gemini-3.5-flash': 'soft-expressive',
+  'gemini-3.7-flash': 'soft-calm',
   'gemini-3.8-flash': 'soft-calm',
   'gemini-flash-latest': 'soft-gentle',
 };

@@ -28,6 +28,7 @@ const chatRequestSchema = z.object({
   language: z.enum(['en-US', 'hi-IN', 'kn-IN']).default('en-US'),
   inputMode: z.enum(['text', 'voice']).default('text'),
   model: z.string().optional(),
+  companionId: z.string().optional(),
 });
 
 function parseBody(req: VercelRequest): any {
@@ -87,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: firstIssue });
     }
 
-    const { conversationId: rawConvId, message, language, inputMode, model: requestedModel } = parseResult.data;
+    const { conversationId: rawConvId, message, language, inputMode, model: requestedModel, companionId } = parseResult.data;
     const client = getSupabaseServerClient();
 
     // 3. Resolve Conversation UUID:
@@ -137,10 +138,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Generate AI response with Gemini (or fallback if key not configured)
       let aiText = '';
       try {
-        aiText = await generateGeminiResponse(message, historyTurns, language, requestedModel);
+        aiText = await generateGeminiResponse(message, historyTurns, language, requestedModel, companionId);
       } catch (geminiErr: any) {
         console.warn('[API/Chat Demo Mode] Gemini API:', geminiErr.message);
-        aiText = `Hello! I received your message: "${message}". (To connect live Gemini and save to cloud, ensure GEMINI_API_KEY is configured in your .env file).`;
+        aiText = `Hello! I am your AI companion. I heard: "${message}". (To activate live cloud AI, please check GEMINI_API_KEY in your environment variables).`;
       }
 
       // Save assistant message in demo store
@@ -243,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate Gemini Response
     let assistantReply = '';
     try {
-      assistantReply = await generateGeminiResponse(message, history, language, requestedModel);
+      assistantReply = await generateGeminiResponse(message, history, language, requestedModel, companionId);
     } catch (geminiError: any) {
       console.error('[API/Chat] Gemini Generation Error:', geminiError);
       return res.status(502).json({

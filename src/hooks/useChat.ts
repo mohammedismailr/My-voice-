@@ -12,6 +12,14 @@ interface UseChatProps {
   onAssistantSpoke?: (text: string, language: SupportedLanguage) => void;
 }
 
+interface FailedMessageState {
+  content: string;
+  language: SupportedLanguage;
+  inputMode: InputMode;
+  model?: string;
+  companionId?: string;
+}
+
 export function useChat({
   activeConversationId,
   onConversationCreated,
@@ -26,6 +34,7 @@ export function useChat({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   // Ref to track conversation IDs that were just created locally to prevent redundant reload
   const justCreatedConvIdRef = useRef<string | null>(null);
+  const lastFailedMessageRef = useRef<FailedMessageState | null>(null);
 
   // Auto-scroll helper
   const scrollToBottom = useCallback((smooth = true) => {
@@ -79,7 +88,8 @@ export function useChat({
       content: string,
       language: SupportedLanguage = 'en-US',
       inputMode: InputMode = 'text',
-      model?: string
+      model?: string,
+      companionId?: string
     ): Promise<boolean> => {
       const cleanContent = content.trim();
       if (!cleanContent) return false;
@@ -116,6 +126,7 @@ export function useChat({
             language,
             inputMode,
             model,
+            companionId,
           },
           token || undefined
         );
@@ -124,6 +135,7 @@ export function useChat({
           throw new Error(response.error || 'Failed to get AI response');
         }
 
+        lastFailedMessageRef.current = null;
         const confirmedConvId = response.conversationId || targetConvId;
 
         // If a new conversation was created on the backend or locally
@@ -163,6 +175,13 @@ export function useChat({
         return true;
       } catch (err: any) {
         console.error('Send message failed:', err);
+        lastFailedMessageRef.current = {
+          content: cleanContent,
+          language,
+          inputMode,
+          model,
+          companionId,
+        };
         setError(err.message || 'AI response could not be generated. Please try again.');
         setIsSending(false);
         return false;
@@ -171,12 +190,20 @@ export function useChat({
     [activeConversationId, token, onConversationCreated, onAssistantSpoke, scrollToBottom]
   );
 
+  const retryLastMessage = useCallback(async (): Promise<boolean> => {
+    if (!lastFailedMessageRef.current) return false;
+    const { content, language, inputMode, model, companionId } = lastFailedMessageRef.current;
+    return sendMessage(content, language, inputMode, model, companionId);
+  }, [sendMessage]);
+
   return {
     messages,
     isLoadingMessages,
     isSending,
     error,
     sendMessage,
+    retryLastMessage,
+    hasFailedMessage: Boolean(lastFailedMessageRef.current),
     messagesEndRef,
     scrollToBottom,
   };

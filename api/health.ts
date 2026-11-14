@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from './types';
+import type { VercelRequest, VercelResponse } from './types.ts';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {

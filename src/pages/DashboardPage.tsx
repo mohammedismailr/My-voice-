@@ -8,6 +8,7 @@ import {
   Volume2,
   Mic,
   Cpu,
+  RotateCcw,
 } from 'lucide-react';
 
 import { AppLayout } from '../components/layout/AppLayout';
@@ -143,6 +144,7 @@ export const DashboardPage: React.FC = () => {
     isSending,
     error: chatError,
     sendMessage,
+    retryLastMessage,
     messagesEndRef,
   } = useChat({
     activeConversationId,
@@ -185,14 +187,14 @@ export const DashboardPage: React.FC = () => {
           ? handleTextLanguageDetection(finalTranscript)
           : selectedLanguage;
 
-        sendMessage(finalTranscript, langToSend, 'voice', activeModel.id)
+        sendMessage(finalTranscript, langToSend, 'voice', activeModel.id, characterId)
           .then((success) => {
             if (!success) {
-              transitionTo('error', 'Failed to generate response.');
+              transitionTo('error', chatError || 'Failed to generate response. Please try again.');
             }
           })
-          .catch(() => {
-            transitionTo('error', 'Error generating response.');
+          .catch((err) => {
+            transitionTo('error', err?.message || 'Error generating response.');
           });
         setInputText('');
       } else {
@@ -233,12 +235,12 @@ export const DashboardPage: React.FC = () => {
 
       transitionTo('generating');
       setInputText('');
-      const success = await sendMessage(text, langToSend, 'text', activeModel.id);
+      const success = await sendMessage(text, langToSend, 'text', activeModel.id, characterId);
       if (!success) {
-        transitionTo('idle');
+        transitionTo('error', chatError || 'Could not generate response.');
       }
     },
-    [stopSpeaking, isAutoDetect, handleTextLanguageDetection, selectedLanguage, transitionTo, sendMessage, activeModel.id]
+    [stopSpeaking, isAutoDetect, handleTextLanguageDetection, selectedLanguage, transitionTo, sendMessage, activeModel.id, characterId, chatError]
   );
 
   // Play personalized greeting when clicking character or switching
@@ -550,9 +552,26 @@ export const DashboardPage: React.FC = () => {
                   </p>
                 </div>
               ) : voiceState === 'error' ? (
-                <p className="text-xs text-red-300 font-medium">
-                  {voiceErrorMessage || 'Oops, I had a little trouble hearing you. Try again!'}
-                </p>
+                <div className="flex flex-col items-center gap-2 py-1">
+                  <p className="text-xs text-red-300 font-medium max-w-sm">
+                    {voiceErrorMessage || chatError || 'Oops, I had a little trouble generating a response.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      transitionTo('generating');
+                      retryLastMessage().then((success) => {
+                        if (!success) {
+                          transitionTo('error', chatError || 'Retry failed. Please check connection and try again.');
+                        }
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500/20 border border-red-500/40 text-[11px] font-semibold text-red-200 hover:bg-red-500/30 transition-all cursor-pointer shadow-md"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Retry Message</span>
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-slate-100 leading-relaxed">
@@ -649,6 +668,7 @@ export const DashboardPage: React.FC = () => {
           isLoadingMessages={isLoadingMessages}
           isSending={isSending}
           error={chatError}
+          onRetry={retryLastMessage}
           messagesEndRef={messagesEndRef}
           onSendPrompt={handleSendText}
           voiceState={voiceState}
