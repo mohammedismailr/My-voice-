@@ -1,6 +1,6 @@
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { IncomingMessage } from 'http';
-import { isValidUUID } from './uuid';
+import { isValidUUID } from './uuid.ts';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';

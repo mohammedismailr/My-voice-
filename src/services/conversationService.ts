@@ -1,5 +1,33 @@
 import type { Conversation, Message, SupportedLanguage } from '../types';
 
+async function safeParseResponse(response: Response, defaultError: string): Promise<any> {
+  const contentType = response.headers.get('content-type') || '';
+  let data: any = null;
+
+  if (contentType.includes('application/json')) {
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+  } else {
+    const rawText = await response.text();
+    let cleanMessage = rawText.trim();
+    if (cleanMessage.includes('FUNCTION_INVOCATION_FAILED')) {
+      cleanMessage = 'Backend service is initializing. Please retry in a moment.';
+    } else if (cleanMessage.length > 200 || cleanMessage.startsWith('<')) {
+      cleanMessage = `${defaultError} (${response.status})`;
+    }
+    throw new Error(cleanMessage || defaultError);
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || `${defaultError} (${response.status})`);
+  }
+
+  return data;
+}
+
 export async function fetchConversations(accessToken?: string): Promise<Conversation[]> {
   const headers: Record<string, string> = {};
   if (accessToken) {
@@ -11,12 +39,8 @@ export async function fetchConversations(accessToken?: string): Promise<Conversa
     headers,
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to fetch conversations');
-  }
-
-  return data.conversations || [];
+  const data = await safeParseResponse(response, 'Failed to fetch conversations');
+  return data?.conversations || [];
 }
 
 export async function createConversation(
@@ -37,12 +61,8 @@ export async function createConversation(
     body: JSON.stringify({ title, language }),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to create conversation');
-  }
-
-  return data.conversation;
+  const data = await safeParseResponse(response, 'Failed to create conversation');
+  return data?.conversation;
 }
 
 export async function fetchConversationDetails(
@@ -59,14 +79,10 @@ export async function fetchConversationDetails(
     headers,
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to fetch conversation details');
-  }
-
+  const data = await safeParseResponse(response, 'Failed to fetch conversation details');
   return {
-    conversation: data.conversation,
-    messages: data.messages || [],
+    conversation: data?.conversation,
+    messages: data?.messages || [],
   };
 }
 
@@ -81,8 +97,5 @@ export async function deleteConversation(id: string, accessToken?: string): Prom
     headers,
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to delete conversation');
-  }
+  await safeParseResponse(response, 'Failed to delete conversation');
 }

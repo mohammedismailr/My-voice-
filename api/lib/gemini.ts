@@ -25,24 +25,25 @@ export async function generateGeminiResponse(
   const configuredModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  const model = genAI.getGenerativeModel({
-    model: configuredModel,
-    systemInstruction: SYSTEM_INSTRUCTION,
-    generationConfig: {
-      temperature: 0.7,
-      topP: 0.95,
-      maxOutputTokens: 2048,
-    },
-  });
+  // Model fallback list if primary encounters temporary high demand (HTTP 503) or 404
+  const candidateModels = Array.from(
+    new Set([
+      configuredModel,
+      'gemini-3.5-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.8-flash',
+      'gemini-flash-latest',
+    ])
+  );
 
   // Convert history turns to Gemini's format: { role: 'user' | 'model', parts: [{ text }] }
-  // Only alternating turns are allowed in multi-turn chat
   const formattedHistory: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
 
   for (const turn of history) {
     if (!turn.content || turn.content.trim().length === 0) continue;
     const role = turn.role === 'assistant' ? 'model' : 'user';
-    
+
     // Skip consecutive same roles to satisfy Gemini API constraints
     if (formattedHistory.length > 0 && formattedHistory[formattedHistory.length - 1].role === role) {
       continue;
@@ -59,10 +60,6 @@ export async function generateGeminiResponse(
     formattedHistory.shift();
   }
 
-  const chat = model.startChat({
-    history: formattedHistory,
-  });
-
   // Append language prompt reminder if language is explicitly set
   let promptToSend = message;
   if (preferredLanguage === 'hi-IN') {
@@ -71,13 +68,37 @@ export async function generateGeminiResponse(
     promptToSend = `[User preferred language: Kannada / ಕನ್ನಡ. Please respond in Kannada.]\n\n${message}`;
   }
 
-  const result = await chat.sendMessage(promptToSend);
-  const response = await result.response;
-  const text = response.text();
+  let lastError: Error | null = null;
 
-  if (!text || text.trim().length === 0) {
-    throw new Error('Gemini returned an empty response. Please try again.');
+  for (const modelName of candidateModels) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_INSTRUCTION,
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        },
+      });
+
+      const chat = model.startChat({
+        history: formattedHistory,
+      });
+
+      const result = await chat.sendMessage(promptToSend);
+      const response = await result.response;
+      const text = response.text();
+
+      if (text && text.trim().length > 0) {
+        return text.trim();
+      }
+    } catch (err: any) {
+      console.warn(`[Gemini] Model ${modelName} failed (${err.message}). Trying fallback...`);
+      lastError = err;
+      // Continue to next candidate model if 503 or 404
+    }
   }
 
-  return text.trim();
+  throw lastError || new Error('All Gemini model candidates failed to generate a response.');
 }

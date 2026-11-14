@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '../types';
-import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer';
-import { demoStore } from '../lib/demoStore';
-import { isValidUUID } from '../lib/uuid';
+import type { VercelRequest, VercelResponse } from '../types.ts';
+import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer.ts';
+import { demoStore } from '../lib/demoStore.ts';
+import { isValidUUID } from '../lib/uuid.ts';
 
 function extractId(req: VercelRequest): string {
   if (req.query?.id) {

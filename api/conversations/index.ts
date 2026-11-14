@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '../types';
-import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer';
-import { demoStore } from '../lib/demoStore';
-import { generateUUID, isValidUUID } from '../lib/uuid';
+import type { VercelRequest, VercelResponse } from '../types.ts';
+import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer.ts';
+import { demoStore } from '../lib/demoStore.ts';
+import { generateUUID, isValidUUID } from '../lib/uuid.ts';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');

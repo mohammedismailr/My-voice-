@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import type { VercelRequest, VercelResponse } from './types';
-import { authenticateRequest, getSupabaseServerClient } from './lib/supabaseServer';
-import { generateGeminiResponse, type HistoryTurn } from './lib/gemini';
-import { generateUUID, isValidUUID } from './lib/uuid';
-import { demoStore } from './lib/demoStore';
+import type { VercelRequest, VercelResponse } from './types.ts';
+import { authenticateRequest, getSupabaseServerClient } from './lib/supabaseServer.ts';
+import { generateGeminiResponse, type HistoryTurn } from './lib/gemini.ts';
+import { generateUUID, isValidUUID } from './lib/uuid.ts';
+import { demoStore } from './lib/demoStore.ts';
 
 // Safe validation schema: pre-processes conversationId and rejects invalid payload formats gracefully
 const chatRequestSchema = z.object({
