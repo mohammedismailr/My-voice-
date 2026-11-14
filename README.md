@@ -31,37 +31,37 @@
 ```mermaid
 flowchart TD
     subgraph Client ["Frontend (Browser)"]
-        UI["MyVoice Responsive UI\n(React 18 + Tailwind + Framer Motion)"]
-        STT["Web Speech Recognition API\n(STT: en-US, hi-IN, kn-IN)"]
-        TTS["Web Speech Synthesis API\n(TTS Voice Utterance)"]
-        AuthHook["useAuth & Supabase SDK\n(Session & Token)"]
+        UI["MyVoice Responsive UI<br/>(React 18 + Tailwind + Framer Motion)"]
+        STT["Web Speech Recognition API<br/>(STT: en-US, hi-IN, kn-IN)"]
+        TTS["Web Speech Synthesis API<br/>(TTS Voice Utterance)"]
+        AuthHook["useAuth & Supabase SDK<br/>(Session & Token)"]
     end
 
     subgraph Vercel ["Vercel Serverless Backend"]
-        ChatAPI["POST /api/chat\n(Zod validation & Auth verification)"]
-        ConvAPI["GET /api/conversations\n(History & Cascade Deletion)"]
-        HealthAPI["GET /api/health\n(Health Check)"]
-        ServerSupabase["Server-Side Supabase Client\n(Privileged Service Role Key)"]
+        ChatAPI["POST /api/chat<br/>(Zod validation & Auth verification)"]
+        ConvAPI["GET /api/conversations<br/>(History & Cascade Deletion)"]
+        HealthAPI["GET /api/health<br/>(Health Check)"]
+        ServerSupabase["Server-Side Supabase Client<br/>(Privileged Service Role Key)"]
     end
 
     subgraph External ["Cloud Intelligence & Database"]
-        Gemini["Google Gemini API\n(gemini-1.5-flash / gemini-1.5-pro)"]
-        SupabaseDB[("Supabase PostgreSQL\n(Profiles, Conversations, Messages + RLS)")]
+        Gemini["Google Gemini API<br/>(gemini-1.5-flash / gemini-1.5-pro)"]
+        SupabaseDB[("Supabase PostgreSQL<br/>(Profiles, Conversations, Messages + RLS)")]
     end
 
     UI -->|Voice captured| STT
     STT -->|Transcript| UI
-    UI -->|Bearer Token + Chat Payload| ChatAPI
+    UI -->|Bearer Token and Chat Payload| ChatAPI
     ChatAPI -->|Verify User Identity| ServerSupabase
     ServerSupabase -->|Verify Ownership| SupabaseDB
     ChatAPI -->|Save User Message| SupabaseDB
     ChatAPI -->|Fetch 20 Recent Turns Context| SupabaseDB
-    ChatAPI -->|Multi-Turn Context & System Prompt| Gemini
+    ChatAPI -->|Multi-Turn Context and System Prompt| Gemini
     Gemini -->|AI Response Text| ChatAPI
     ChatAPI -->|Persist Assistant Message| SupabaseDB
     ChatAPI -->|JSON Response| UI
-    UI -->|Read Aloud (autoSpeak)| TTS
-    UI <-->|Fetch/Manage History| ConvAPI
+    UI -->|Read Aloud - autoSpeak| TTS
+    UI <-->|Fetch and Manage History| ConvAPI
     ConvAPI <--> SupabaseDB
 ```
 
