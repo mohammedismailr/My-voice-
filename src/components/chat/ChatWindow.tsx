@@ -195,6 +195,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               isSpeakingThis={isSpeaking}
               onSpeak={onSpeakMessage}
               onStopSpeak={onStopSpeaking}
+              companion={activeCharacter}
             />
           ))}
 

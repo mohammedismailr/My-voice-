@@ -80,6 +80,7 @@ export interface ChatApiRequest {
   message: string;
   language: SupportedLanguage;
   inputMode: InputMode;
+  model?: string;
 }
 
 export interface ChatApiResponse {
@@ -95,4 +96,7 @@ export interface VoiceSettings {
   rate: number;
   pitch: number;
   volume: number;
+  adaptiveVoice: boolean; // Auto-switches voice when AI model changes
+  selectedVoiceProfileId: string; // Profile ID: 'soft-warm', 'soft-expressive', 'soft-calm', etc.
+  manualVoiceName?: string; // Optional manual specific voice name
 }

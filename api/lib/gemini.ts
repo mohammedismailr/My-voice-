@@ -15,14 +15,15 @@ export interface HistoryTurn {
 export async function generateGeminiResponse(
   message: string,
   history: HistoryTurn[] = [],
-  preferredLanguage?: string
+  preferredLanguage?: string,
+  requestedModel?: string
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey.includes('your-gemini-api-key')) {
     throw new Error('GEMINI_API_KEY is not configured on the server. Please set it in your environment variables.');
   }
 
-  const configuredModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+  const configuredModel = requestedModel || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const genAI = new GoogleGenerativeAI(apiKey);
 
   // Model fallback list if primary encounters temporary high demand (HTTP 503) or 404

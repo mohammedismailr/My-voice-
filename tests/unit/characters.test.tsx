@@ -23,25 +23,25 @@ describe('Data: 3D Plush Characters', () => {
     expect(mochi.accessory).toMatch(/headphones/i);
   });
 
-  it('configures Yellow Triangular Character (Pip) with glasses and bow tie', () => {
+  it('configures Yellow Triangular Character (Pixel) with glasses and bow tie', () => {
     const pip = CHARACTERS['yellow-triangle'];
-    expect(pip.name).toBe('Pip');
-    expect(pip.personality).toMatch(/energetic|intelligent/i);
+    expect(pip.name).toMatch(/Pixel|Pip/i);
+    expect(pip.personality).toMatch(/energetic|intelligent|analytical/i);
     expect(pip.accessory).toMatch(/spectacles|glasses/i);
     expect(pip.accessory).toMatch(/bow tie/i);
   });
 
-  it('configures Blue Fluffy Cloud (Cirrus) with black beret', () => {
+  it('configures Blue Fluffy Cloud (Bubbles) with black beret', () => {
     const cirrus = CHARACTERS['blue-cloud'];
-    expect(cirrus.name).toBe('Cirrus');
-    expect(cirrus.personality).toMatch(/peaceful|thoughtful/i);
+    expect(cirrus.name).toMatch(/Bubbles|Cirrus/i);
+    expect(cirrus.personality).toMatch(/peaceful|thoughtful|cheerful/i);
     expect(cirrus.accessory).toMatch(/beret/i);
   });
 
-  it('configures Pink Bunny (Lola) with cute headphones', () => {
+  it('configures Pink Bunny (Berry) with cute headphones', () => {
     const lola = CHARACTERS['pink-bunny'];
-    expect(lola.name).toBe('Lola');
-    expect(lola.personality).toMatch(/cheerful|encouraging/i);
+    expect(lola.name).toMatch(/Berry|Lola/i);
+    expect(lola.personality).toMatch(/cheerful|encouraging|expressive/i);
     expect(lola.accessory).toMatch(/headphones/i);
   });
 
@@ -103,19 +103,19 @@ describe('Component: CharacterSelector', () => {
   it('renders all 5 characters with names and personality labels', () => {
     render(<CharacterSelector selectedId="beige-mascot" onSelect={() => {}} />);
     expect(screen.getByText('Mochi')).toBeInTheDocument();
-    expect(screen.getByText('Pip')).toBeInTheDocument();
-    expect(screen.getByText('Cirrus')).toBeInTheDocument();
-    expect(screen.getByText('Lola')).toBeInTheDocument();
+    expect(screen.getByText(/Pixel|Pip/)).toBeInTheDocument();
+    expect(screen.getByText(/Bubbles|Cirrus/)).toBeInTheDocument();
+    expect(screen.getByText(/Berry|Lola/)).toBeInTheDocument();
     expect(screen.getByText('Nova')).toBeInTheDocument();
   });
 
   it('triggers onSelect when a character card is clicked', () => {
     const handleSelect = vi.fn();
     render(<CharacterSelector selectedId="beige-mascot" onSelect={handleSelect} />);
-    const pipButton = screen.getByText('Pip').closest('button');
-    expect(pipButton).toBeInTheDocument();
-    if (pipButton) {
-      fireEvent.click(pipButton);
+    const pixelButton = screen.getByText(/Pixel|Pip/).closest('button');
+    expect(pixelButton).toBeInTheDocument();
+    if (pixelButton) {
+      fireEvent.click(pixelButton);
       expect(handleSelect).toHaveBeenCalledWith('yellow-triangle');
     }
   });

@@ -5,6 +5,7 @@ interface AppLayoutProps {
   header: React.ReactNode;
   children: React.ReactNode;
   inputArea: React.ReactNode;
+  inspector?: React.ReactNode;
   modals?: React.ReactNode;
 }
 
@@ -13,6 +14,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   header,
   children,
   inputArea,
+  inspector,
   modals,
 }) => {
   return (
@@ -23,16 +25,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Main Content Viewport */}
       <div className="relative flex flex-1 flex-col overflow-hidden">
         {header}
-        
-        {/* Chat / Messages Area */}
-        <main className="flex flex-1 flex-col overflow-hidden relative">
-          {children}
-        </main>
 
-        {/* Bottom Input Area */}
-        <footer className="w-full flex-shrink-0 z-10">
-          {inputArea}
-        </footer>
+        {/* Content Body + Right Inspector */}
+        <div className="flex flex-1 overflow-hidden relative">
+          <div className="flex flex-1 flex-col overflow-hidden relative">
+            {/* Chat / Messages / 3D Stage Area */}
+            <main className="flex flex-1 flex-col overflow-hidden relative">
+              {children}
+            </main>
+
+            {/* Bottom Input Area */}
+            <footer className="w-full flex-shrink-0 z-10">
+              {inputArea}
+            </footer>
+          </div>
+
+          {/* Right Inspector Panel */}
+          {inspector}
+        </div>
       </div>
 
       {/* Modals and Overlays */}

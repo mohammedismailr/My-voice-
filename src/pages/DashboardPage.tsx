@@ -7,6 +7,7 @@ import {
   Bot,
   Volume2,
   Mic,
+  Cpu,
 } from 'lucide-react';
 
 import { AppLayout } from '../components/layout/AppLayout';
@@ -19,7 +20,13 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { PlushCharacter } from '../components/character/PlushCharacter';
 import { CharacterSelector } from '../components/character/CharacterSelector';
 import { VoiceControls } from '../components/voice/VoiceControls';
+import { ModelSelectorModal } from '../components/models/ModelSelectorModal';
+import { CompanionDrawer } from '../components/character/CompanionDrawer';
+import { CompanionInspector } from '../components/dashboard/CompanionInspector';
 import { CHARACTERS } from '../data/characters';
+import { getModelById, DEFAULT_MODEL_ID } from '../data/models';
+import type { CharacterConfig, CharacterId } from '../types/character';
+import { SOFT_VOICE_PROFILES } from '../data/voiceProfiles';
 
 import { useAuth } from '../hooks/useAuth';
 import { useLanguagePreference } from '../hooks/useLanguagePreference';
@@ -38,6 +45,12 @@ export const DashboardPage: React.FC = () => {
   // Character preferences (5 Selectable 3D Plush Characters)
   const { characterId, activeCharacter, setCharacter } = useCharacterPreference('beige-mascot');
 
+  // AI Model Selection & Adaptive Voice Sync
+  const [activeModelId, setActiveModelId] = useState<string>(() => {
+    return localStorage.getItem('myvoice_active_model') || DEFAULT_MODEL_ID;
+  });
+  const activeModel = useMemo(() => getModelById(activeModelId), [activeModelId]);
+
   // View mode: 'companion' (large interactive 3D stage) vs 'chat' (full message transcript)
   const [viewMode, setViewMode] = useState<'companion' | 'chat'>('companion');
 
@@ -54,6 +67,9 @@ export const DashboardPage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isModelModalOpen, setIsModelModalOpen] = useState(false);
+  const [isCompanionDrawerOpen, setIsCompanionDrawerOpen] = useState(false);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Voice state machine
@@ -73,7 +89,7 @@ export const DashboardPage: React.FC = () => {
     barCount: 8,
   });
 
-  // Speech Synthesis (TTS)
+  // Speech Synthesis (TTS with Adaptive Soft Voice profiles)
   const {
     isSupported: isTtsSupported,
     settings: voiceSettings,
@@ -82,7 +98,18 @@ export const DashboardPage: React.FC = () => {
     stopSpeaking,
     replay,
     hasLastSpoken,
+    handleModelChange,
   } = useSpeechSynthesis();
+
+  // Handle model change and adapt voice
+  const handleSelectModel = useCallback(
+    (newModelId: string) => {
+      setActiveModelId(newModelId);
+      localStorage.setItem('myvoice_active_model', newModelId);
+      handleModelChange(newModelId);
+    },
+    [handleModelChange]
+  );
 
   // Conversations management
   const {
@@ -95,7 +122,7 @@ export const DashboardPage: React.FC = () => {
     addOrUpdateConversation,
   } = useConversations();
 
-  // Helper to speak with character's personality pitch
+  // Helper to speak with character's personality pitch and adaptive soft voice
   const speakWithCharacter = useCallback(
     (text: string, lang: SupportedLanguage, onDone?: () => void) => {
       speak(
@@ -158,7 +185,7 @@ export const DashboardPage: React.FC = () => {
           ? handleTextLanguageDetection(finalTranscript)
           : selectedLanguage;
 
-        sendMessage(finalTranscript, langToSend, 'voice')
+        sendMessage(finalTranscript, langToSend, 'voice', activeModel.id)
           .then((success) => {
             if (!success) {
               transitionTo('error', 'Failed to generate response.');
@@ -206,12 +233,12 @@ export const DashboardPage: React.FC = () => {
 
       transitionTo('generating');
       setInputText('');
-      const success = await sendMessage(text, langToSend, 'text');
+      const success = await sendMessage(text, langToSend, 'text', activeModel.id);
       if (!success) {
         transitionTo('idle');
       }
     },
-    [stopSpeaking, isAutoDetect, handleTextLanguageDetection, selectedLanguage, transitionTo, sendMessage]
+    [stopSpeaking, isAutoDetect, handleTextLanguageDetection, selectedLanguage, transitionTo, sendMessage, activeModel.id]
   );
 
   // Play personalized greeting when clicking character or switching
@@ -271,6 +298,10 @@ export const DashboardPage: React.FC = () => {
           isOpenMobile={isMobileMenuOpen}
           onCloseMobile={() => setIsMobileMenuOpen(false)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenCompanions={() => setIsCompanionDrawerOpen(true)}
+          onOpenModels={() => setIsModelModalOpen(true)}
+          activeModelName={activeModel.name}
+          activeCompanionName={activeCharacter.name}
         />
       }
       header={
@@ -288,6 +319,10 @@ export const DashboardPage: React.FC = () => {
             onSelectLanguage={setLanguage}
             isAutoDetect={isAutoDetect}
             onToggleAutoDetect={setAutoDetect}
+            activeModel={activeModel}
+            onOpenModels={() => setIsModelModalOpen(true)}
+            onToggleInspector={() => setIsInspectorOpen((prev) => !prev)}
+            isInspectorOpen={isInspectorOpen}
           />
 
           {/* Subheader: Mode Switcher (Plush Companion Stage vs Chat History) */}
@@ -321,11 +356,12 @@ export const DashboardPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Current Character Active Pill */}
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-[11px] text-slate-400">Companion:</span>
-              <div
-                className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold text-white border"
+            {/* Current Character Active Pill & Explore Button */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCompanionDrawerOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold text-white border transition-transform hover:scale-105 cursor-pointer"
                 style={{
                   backgroundColor: `${activeCharacter.colors.primary}20`,
                   borderColor: `${activeCharacter.colors.primary}50`,
@@ -334,10 +370,45 @@ export const DashboardPage: React.FC = () => {
                 <span className="h-2 w-2 rounded-full animate-ping" style={{ backgroundColor: activeCharacter.colors.primary }} />
                 <span>{activeCharacter.name}</span>
                 <span className="text-[10px] text-slate-400">({activeCharacter.personality})</span>
-              </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsModelModalOpen(true)}
+                className="hidden md:flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all cursor-pointer"
+              >
+                <Cpu className="h-3 w-3" />
+                <span>{activeModel.name}</span>
+              </button>
             </div>
           </div>
         </div>
+      }
+      inspector={
+        isInspectorOpen ? (
+          <div className="hidden xl:block h-full">
+            <CompanionInspector
+              companion={activeCharacter}
+              activeModel={activeModel}
+              voiceSettings={voiceSettings}
+              onUpdateVoiceSettings={updateVoiceSettings}
+              onOpenCompanions={() => setIsCompanionDrawerOpen(true)}
+              onOpenModels={() => setIsModelModalOpen(true)}
+              onTestVoice={() => {
+                const sample =
+                  selectedLanguage === 'hi-IN'
+                    ? `नमस्ते! मैं ${activeCharacter.name} हूँ, आपका सॉफ्ट वॉयस एआई साथी।`
+                    : selectedLanguage === 'kn-IN'
+                    ? `ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ${activeCharacter.name} ಎಐ ಒಡನಾಡಿ.`
+                    : `Hello! I am ${activeCharacter.name}, your ultra-soft voice AI plush companion.`;
+                speakWithCharacter(sample, selectedLanguage);
+              }}
+              onTriggerGreeting={handleCharacterGreeting}
+              messagesCount={messages.length}
+              selectedLanguage={selectedLanguage}
+            />
+          </div>
+        ) : null
       }
       inputArea={
         <MessageInput
@@ -356,6 +427,40 @@ export const DashboardPage: React.FC = () => {
       }
       modals={
         <>
+          <ModelSelectorModal
+            isOpen={isModelModalOpen}
+            onClose={() => setIsModelModalOpen(false)}
+            activeModelId={activeModelId}
+            onSelectModel={(model) => handleSelectModel(model.id)}
+            onTestVoice={(profileId: string) => {
+              const profile = SOFT_VOICE_PROFILES[profileId];
+              if (profile) {
+                const previewText = `Hello! Previewing the ${profile.name} adaptive soft voice profile.`;
+                speak(previewText, 'en-US', undefined, profile.pitch, profile.rate);
+              }
+            }}
+          />
+
+          <CompanionDrawer
+            isOpen={isCompanionDrawerOpen}
+            onClose={() => setIsCompanionDrawerOpen(false)}
+            activeCharacterId={characterId}
+            onSelectCharacter={(newId: CharacterId) => {
+              setCharacter(newId);
+              const char = CHARACTERS[newId];
+              if (char && voiceSettings.autoSpeak) {
+                const greeting = char.greetings[selectedLanguage] || char.greetings['en-US'];
+                transitionTo('speaking');
+                speak(greeting, selectedLanguage, () => transitionTo('idle'), char.voicePitch, char.voiceRate);
+              }
+            }}
+            onGreetingPreview={(char: CharacterConfig) => {
+              const greeting = char.greetings[selectedLanguage] || char.greetings['en-US'];
+              transitionTo('speaking');
+              speak(greeting, selectedLanguage, () => transitionTo('idle'), char.voicePitch, char.voiceRate);
+            }}
+          />
+
           <SettingsPanel
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
@@ -366,6 +471,10 @@ export const DashboardPage: React.FC = () => {
             onTestVoice={(text, lang) => speakWithCharacter(text, lang)}
             isSpeechRecognitionSupported={isSttSupported}
             isSpeechSynthesisSupported={isTtsSupported}
+            activeModelName={activeModel.name}
+            activeCompanionName={activeCharacter.name}
+            onOpenCompanions={() => setIsCompanionDrawerOpen(true)}
+            onOpenModels={() => setIsModelModalOpen(true)}
           />
 
           <ConfirmDialog
@@ -390,12 +499,14 @@ export const DashboardPage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold backdrop-blur-md border shadow-lg"
+              className="inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold backdrop-blur-md border shadow-lg cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => setIsCompanionDrawerOpen(true)}
               style={{
                 backgroundColor: `${activeCharacter.colors.primary}18`,
                 borderColor: `${activeCharacter.colors.primary}40`,
                 color: activeCharacter.colors.primary,
               }}
+              title="Click to explore all companions"
             >
               <Sparkles className="h-3.5 w-3.5" />
               <span>{activeCharacter.name} the {activeCharacter.species}</span>
@@ -426,7 +537,7 @@ export const DashboardPage: React.FC = () => {
               ) : voiceState === 'generating' || voiceState === 'processing' ? (
                 <div className="flex items-center justify-center gap-2 text-xs font-medium text-purple-300 py-1">
                   <Sparkles className="h-4 w-4 animate-spin text-purple-400" />
-                  <span>{activeCharacter.name} is thinking carefully...</span>
+                  <span>{activeCharacter.name} is thinking carefully with {activeModel.name}...</span>
                 </div>
               ) : isSpeaking ? (
                 <div className="flex flex-col items-center gap-1">
@@ -504,7 +615,7 @@ export const DashboardPage: React.FC = () => {
                   handleSendText(item.prompt);
                   setViewMode('chat');
                 }}
-                className="rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs text-slate-300 hover:border-purple-500/40 hover:bg-white/10 hover:text-white transition-all shadow-sm"
+                className="rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs text-slate-300 hover:border-purple-500/40 hover:bg-white/10 hover:text-white transition-all shadow-sm cursor-pointer"
               >
                 {item.label}
               </button>

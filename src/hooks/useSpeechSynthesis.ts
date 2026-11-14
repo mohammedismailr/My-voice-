@@ -1,11 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SupportedLanguage, VoiceSettings } from '../types';
+import {
+  SOFT_VOICE_PROFILES,
+  MODEL_TO_VOICE_MAP,
+  findBestVoiceForProfile,
+  type SoftVoiceProfile,
+} from '../data/voiceProfiles';
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   autoSpeak: true,
-  rate: 1.0,
-  pitch: 1.0,
-  volume: 1.0,
+  rate: 0.94,
+  pitch: 1.05,
+  volume: 0.96,
+  adaptiveVoice: true,
+  selectedVoiceProfileId: 'soft-warm',
+  manualVoiceName: undefined,
 };
 
 const LOCAL_STORAGE_VOICE_SETTINGS = 'myvoice_tts_settings';
@@ -32,7 +41,7 @@ export function useSpeechSynthesis() {
 
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Load voices
+  // Load voices on mount
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setIsSupported(false);
@@ -65,6 +74,34 @@ export function useSpeechSynthesis() {
     });
   }, []);
 
+  /**
+   * Adaptive Voice Switching:
+   * When an AI model changes, automatically select its recommended soft voice profile.
+   */
+  const handleModelChange = useCallback(
+    (modelId: string): SoftVoiceProfile | null => {
+      if (!settings.adaptiveVoice) {
+        return null;
+      }
+
+      const voiceProfileId = MODEL_TO_VOICE_MAP[modelId] || 'soft-warm';
+      const profile = SOFT_VOICE_PROFILES[voiceProfileId];
+
+      if (profile) {
+        updateSettings({
+          selectedVoiceProfileId: voiceProfileId,
+          rate: profile.rate,
+          pitch: profile.pitch,
+          volume: profile.volume,
+        });
+        return profile;
+      }
+
+      return null;
+    },
+    [settings.adaptiveVoice, updateSettings]
+  );
+
   const stopSpeaking = useCallback(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -88,10 +125,10 @@ export function useSpeechSynthesis() {
     }
   }, [isPaused]);
 
-  // Clean Markdown formatting from text before speaking
+  // Strip Markdown formatting so speech sounds fluent and natural
   const cleanMarkdownForSpeech = (text: string): string => {
     return text
-      .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+      .replace(/```[\s\S]*?```/g, 'Code snippet omitted.')
       .replace(/`([^`]+)`/g, '$1')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/[#*_~>]/g, '')
@@ -99,21 +136,41 @@ export function useSpeechSynthesis() {
       .trim();
   };
 
-  const getVoiceForLanguage = useCallback((lang: SupportedLanguage): SpeechSynthesisVoice | null => {
-    if (availableVoices.length === 0) return null;
+  /**
+   * Resolves the optimal natural voice for the target language,
+   * taking into account soft voice profiles or manual override.
+   */
+  const resolveVoice = useCallback(
+    (lang: SupportedLanguage): SpeechSynthesisVoice | null => {
+      if (availableVoices.length === 0) return null;
 
-    // Search exact match (e.g. 'hi-IN', 'kn-IN', 'en-US')
-    let matched = availableVoices.find((v) => v.lang.toLowerCase() === lang.toLowerCase());
-    if (matched) return matched;
+      // 1. If manual voice override is set
+      if (settings.manualVoiceName) {
+        const manual = availableVoices.find(
+          (v) => v.name.toLowerCase() === settings.manualVoiceName?.toLowerCase()
+        );
+        if (manual) return manual;
+      }
 
-    // Search prefix match ('hi', 'kn', 'en')
-    const langPrefix = lang.split('-')[0].toLowerCase();
-    matched = availableVoices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
-    if (matched) return matched;
+      // 2. Adaptive Soft Voice Profile match
+      const matched = findBestVoiceForProfile(
+        availableVoices,
+        settings.selectedVoiceProfileId,
+        lang
+      );
+      if (matched) return matched;
 
-    // Fallback default voice
-    return availableVoices.find((v) => v.default) || availableVoices[0] || null;
-  }, [availableVoices]);
+      // 3. Fallback to first available matching language
+      const langPrefix = lang.split('-')[0].toLowerCase();
+      const langFallback = availableVoices.find((v) =>
+        v.lang.toLowerCase().startsWith(langPrefix)
+      );
+      if (langFallback) return langFallback;
+
+      return availableVoices.find((v) => v.default) || availableVoices[0] || null;
+    },
+    [availableVoices, settings.manualVoiceName, settings.selectedVoiceProfileId]
+  );
 
   const speak = useCallback(
     (
@@ -130,7 +187,6 @@ export function useSpeechSynthesis() {
 
       if (!text || text.trim().length === 0) return;
 
-      // Cancel any ongoing speech first
       stopSpeaking();
 
       const cleanedText = cleanMarkdownForSpeech(text);
@@ -144,7 +200,7 @@ export function useSpeechSynthesis() {
       utterance.pitch = customPitch !== undefined ? customPitch : settings.pitch;
       utterance.volume = settings.volume;
 
-      const voice = getVoiceForLanguage(language);
+      const voice = resolveVoice(language);
       if (voice) {
         utterance.voice = voice;
       }
@@ -164,7 +220,6 @@ export function useSpeechSynthesis() {
       };
 
       utterance.onerror = (event) => {
-        // 'interrupted' or 'canceled' are normal when stopSpeaking() is called
         if (event.error !== 'interrupted' && event.error !== 'canceled') {
           console.warn('Speech synthesis error:', event.error);
         }
@@ -173,10 +228,9 @@ export function useSpeechSynthesis() {
         utteranceRef.current = null;
       };
 
-      // Workaround for Chrome bug where long utterances stall after ~15s
       window.speechSynthesis.speak(utterance);
     },
-    [stopSpeaking, settings, getVoiceForLanguage]
+    [stopSpeaking, settings, resolveVoice]
   );
 
   const replay = useCallback(
@@ -188,6 +242,16 @@ export function useSpeechSynthesis() {
     [lastSpokenText, lastSpokenLang, speak]
   );
 
+  const testVoice = useCallback(
+    (profileId?: string, lang: SupportedLanguage = 'en-US') => {
+      const pid = profileId || settings.selectedVoiceProfileId;
+      const profile = SOFT_VOICE_PROFILES[pid] || SOFT_VOICE_PROFILES['soft-warm'];
+      const phrase = profile.samplePhrase[lang] || profile.samplePhrase['en-US'];
+      speak(phrase, lang, undefined, profile.pitch, profile.rate);
+    },
+    [settings.selectedVoiceProfileId, speak]
+  );
+
   return {
     isSupported,
     isSpeaking,
@@ -195,11 +259,14 @@ export function useSpeechSynthesis() {
     availableVoices,
     settings,
     updateSettings,
+    handleModelChange,
+    resolveVoice,
     speak,
     stopSpeaking,
     pauseSpeaking,
     resumeSpeaking,
     replay,
+    testVoice,
     hasLastSpoken: Boolean(lastSpokenText),
   };
 }

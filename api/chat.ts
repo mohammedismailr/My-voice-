@@ -27,6 +27,7 @@ const chatRequestSchema = z.object({
     .max(4000, 'Message cannot exceed 4000 characters'),
   language: z.enum(['en-US', 'hi-IN', 'kn-IN']).default('en-US'),
   inputMode: z.enum(['text', 'voice']).default('text'),
+  model: z.string().optional(),
 });
 
 function parseBody(req: VercelRequest): any {
@@ -86,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: firstIssue });
     }
 
-    const { conversationId: rawConvId, message, language, inputMode } = parseResult.data;
+    const { conversationId: rawConvId, message, language, inputMode, model: requestedModel } = parseResult.data;
     const client = getSupabaseServerClient();
 
     // 3. Resolve Conversation UUID:
@@ -136,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Generate AI response with Gemini (or fallback if key not configured)
       let aiText = '';
       try {
-        aiText = await generateGeminiResponse(message, historyTurns, language);
+        aiText = await generateGeminiResponse(message, historyTurns, language, requestedModel);
       } catch (geminiErr: any) {
         console.warn('[API/Chat Demo Mode] Gemini API:', geminiErr.message);
         aiText = `Hello! I received your message: "${message}". (To connect live Gemini and save to cloud, ensure GEMINI_API_KEY is configured in your .env file).`;
@@ -242,7 +243,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate Gemini Response
     let assistantReply = '';
     try {
-      assistantReply = await generateGeminiResponse(message, history, language);
+      assistantReply = await generateGeminiResponse(message, history, language, requestedModel);
     } catch (geminiError: any) {
       console.error('[API/Chat] Gemini Generation Error:', geminiError);
       return res.status(502).json({

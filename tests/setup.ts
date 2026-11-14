@@ -15,6 +15,11 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+// Mock HTMLCanvasElement.prototype.getContext to gracefully handle Three.js/WebGL in JSDOM
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = (() => null) as any;
+}
+
 // Mock SpeechSynthesis
 if (typeof window !== 'undefined') {
   (window as any).speechSynthesis = {

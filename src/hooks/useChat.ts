@@ -78,7 +78,8 @@ export function useChat({
     async (
       content: string,
       language: SupportedLanguage = 'en-US',
-      inputMode: InputMode = 'text'
+      inputMode: InputMode = 'text',
+      model?: string
     ): Promise<boolean> => {
       const cleanContent = content.trim();
       if (!cleanContent) return false;
@@ -114,6 +115,7 @@ export function useChat({
             message: cleanContent,
             language,
             inputMode,
+            model,
           },
           token || undefined
         );
