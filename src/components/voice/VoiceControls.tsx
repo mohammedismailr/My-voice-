@@ -1,6 +1,9 @@
 import React from 'react';
-import { Mic, MicOff, Square, RotateCcw, VolumeX, Sparkles, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Mic, Square, RotateCcw, VolumeX, Sparkles, AlertCircle, X } from 'lucide-react';
 import type { VoiceState } from '../../types';
+import type { CharacterConfig } from '../../types/character';
+import { VoiceVisualizer } from './VoiceVisualizer';
 
 interface VoiceControlsProps {
   voiceState: VoiceState;
@@ -13,6 +16,9 @@ interface VoiceControlsProps {
   onReplay: () => void;
   hasLastSpoken: boolean;
   errorMessage?: string | null;
+  activeCharacter?: CharacterConfig;
+  frequencies?: number[];
+  size?: 'normal' | 'large';
 }
 
 export const VoiceControls: React.FC<VoiceControlsProps> = ({
@@ -26,100 +32,135 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
   onReplay,
   hasLastSpoken,
   errorMessage,
+  activeCharacter,
+  frequencies = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+  size = 'normal',
 }) => {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      {/* Voice State Badge */}
-      <div className="flex items-center gap-2">
-        {isListening && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 text-xs font-medium text-cyan-300 animate-pulse">
-            <span className="h-2 w-2 rounded-full bg-cyan-400" />
-            {voiceState === 'speech_detected' ? 'Speech detected...' : 'Listening... Speak now'}
-          </span>
-        )}
+  const primaryColor = activeCharacter?.colors.primary || '#8B5CF6';
+  const glowColor = activeCharacter?.colors.glow || 'rgba(139, 92, 246, 0.45)';
 
-        {(voiceState === 'processing' || voiceState === 'generating') && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 px-3 py-1 text-xs font-medium text-purple-300">
-            <Sparkles className="h-3 w-3 animate-spin text-purple-400" />
-            Generating response...
-          </span>
+  return (
+    <div className="flex flex-col items-center gap-3 w-full max-w-md mx-auto select-none">
+      {/* Live Voice Status Badge & Audio Wave Visualizer */}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {isListening && (
+          <VoiceVisualizer
+            frequencies={frequencies}
+            isActive={true}
+            color={primaryColor}
+            glowColor={glowColor}
+            mode="mic"
+          />
         )}
 
         {isSpeaking && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 px-3 py-1 text-xs font-medium text-indigo-300">
-            <span className="h-2 w-2 rounded-full bg-indigo-400 animate-ping" />
-            Speaking response...
+          <VoiceVisualizer
+            frequencies={frequencies}
+            isActive={true}
+            color="#EC4899"
+            glowColor="rgba(236, 72, 153, 0.45)"
+            mode="speaker"
+          />
+        )}
+
+        {(voiceState === 'processing' || voiceState === 'generating') && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 px-3.5 py-1 text-xs font-semibold text-purple-300 backdrop-blur-md">
+            <Sparkles className="h-3.5 w-3.5 animate-spin text-purple-400" />
+            Thinking of a response...
           </span>
         )}
 
         {voiceState === 'error' && errorMessage && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/30 px-3 py-1 text-xs font-medium text-red-300">
-            <AlertCircle className="h-3 w-3 text-red-400" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 border border-red-500/30 px-3.5 py-1 text-xs font-semibold text-red-300 backdrop-blur-md">
+            <AlertCircle className="h-3.5 w-3.5 text-red-400" />
             {errorMessage}
           </span>
         )}
       </div>
 
-      {/* Action Buttons Bar */}
-      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#171B2B]/90 p-1.5 shadow-xl backdrop-blur-xl">
-        {/* Main Mic Toggle */}
+      {/* Main Tactile Action Controls Bar */}
+      <div className="flex items-center gap-2.5 rounded-3xl border border-white/10 bg-[#171B2B]/90 p-2 shadow-2xl backdrop-blur-2xl">
         {isListening ? (
           <>
-            <button
+            {/* Done Speaking Button */}
+            <motion.button
               type="button"
               onClick={onStopListening}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               title="Finish speaking and send"
-              className="flex items-center gap-1.5 rounded-xl bg-cyan-500 px-3.5 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 shadow-glow-secondary transition-all"
+              className="flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-bold text-slate-950 shadow-lg cursor-pointer transition-all"
+              style={{
+                backgroundColor: primaryColor,
+                boxShadow: `0 0 20px ${glowColor}`,
+              }}
             >
-              <Square className="h-3.5 w-3.5 fill-current" />
-              Done
-            </button>
-            <button
+              <Square className="h-4 w-4 fill-current" />
+              <span>Done Speaking</span>
+            </motion.button>
+
+            {/* Cancel Voice Input */}
+            <motion.button
               type="button"
               onClick={onCancelListening}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               title="Cancel voice input"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all"
+              className="flex items-center gap-1.5 rounded-2xl border border-white/10 px-3.5 py-3 text-xs font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all"
             >
-              <MicOff className="h-3.5 w-3.5" />
-              Cancel
-            </button>
+              <X className="h-4 w-4" />
+              <span>Cancel</span>
+            </motion.button>
           </>
         ) : (
-          <button
+          /* Big Tactile Start Voice Button */
+          <motion.button
             type="button"
             onClick={onStartListening}
-            title="Start voice input"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-glow-primary hover:from-purple-500 hover:to-indigo-500 transition-all"
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.96, y: 1 }}
+            title="Start voice conversation"
+            className={`flex items-center justify-center gap-2.5 rounded-2xl font-bold text-white shadow-xl cursor-pointer transition-all ${
+              size === 'large' ? 'px-7 py-3.5 text-sm' : 'px-5 py-2.5 text-xs'
+            }`}
+            style={{
+              background: `linear-gradient(135deg, ${primaryColor}, #6366F1)`,
+              boxShadow: `0 8px 24px -4px ${glowColor}`,
+            }}
           >
-            <Mic className="h-4 w-4" />
-            Start Voice
-          </button>
+            <Mic className={size === 'large' ? 'h-5 w-5' : 'h-4 w-4'} />
+            <span>Talk to {activeCharacter?.name || 'Companion'}</span>
+          </motion.button>
         )}
 
         {/* TTS Stop Speaking Button */}
         {isSpeaking && (
-          <button
+          <motion.button
             type="button"
             onClick={onStopSpeaking}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             title="Stop AI speech"
-            className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-500/20 transition-all"
+            className="flex items-center gap-1.5 rounded-2xl border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-xs font-semibold text-red-300 hover:bg-red-500/25 transition-all"
           >
-            <VolumeX className="h-3.5 w-3.5" />
-            Mute
-          </button>
+            <VolumeX className="h-4 w-4" />
+            <span>Mute</span>
+          </motion.button>
         )}
 
         {/* Replay Button */}
         {!isSpeaking && hasLastSpoken && (
-          <button
+          <motion.button
             type="button"
             onClick={onReplay}
-            title="Replay last AI response"
-            className="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Replay last spoken response"
+            className="flex items-center gap-1.5 rounded-2xl border border-white/10 px-3.5 py-2.5 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-all"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Replay
-          </button>
+            <RotateCcw className="h-4 w-4" />
+            <span>Replay</span>
+          </motion.button>
         )}
       </div>
     </div>

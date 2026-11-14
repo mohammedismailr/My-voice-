@@ -116,7 +116,13 @@ export function useSpeechSynthesis() {
   }, [availableVoices]);
 
   const speak = useCallback(
-    (text: string, language: SupportedLanguage = 'en-US', onComplete?: () => void) => {
+    (
+      text: string,
+      language: SupportedLanguage = 'en-US',
+      onComplete?: () => void,
+      customPitch?: number,
+      customRate?: number
+    ) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
         setIsSupported(false);
         return;
@@ -134,8 +140,8 @@ export function useSpeechSynthesis() {
       utteranceRef.current = utterance;
 
       utterance.lang = language;
-      utterance.rate = settings.rate;
-      utterance.pitch = settings.pitch;
+      utterance.rate = customRate !== undefined ? customRate : settings.rate;
+      utterance.pitch = customPitch !== undefined ? customPitch : settings.pitch;
       utterance.volume = settings.volume;
 
       const voice = getVoiceForLanguage(language);

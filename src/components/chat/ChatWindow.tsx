@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, AlertCircle } from 'lucide-react';
 import type { Message, SupportedLanguage, VoiceState } from '../../types';
+import type { CharacterConfig, CharacterId } from '../../types/character';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from '../common/TypingIndicator';
 import { VoiceOrb } from '../voice/VoiceOrb';
@@ -25,6 +26,10 @@ interface ChatWindowProps {
   hasLastSpoken: boolean;
   voiceErrorMessage?: string | null;
   onSpeakMessage?: (text: string, lang: SupportedLanguage) => void;
+  characterId?: CharacterId;
+  activeCharacter?: CharacterConfig;
+  audioLevel?: number;
+  frequencies?: number[];
 }
 
 const SUGGESTED_PROMPTS = [
@@ -72,6 +77,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   hasLastSpoken,
   voiceErrorMessage,
   onSpeakMessage,
+  characterId = 'beige-mascot',
+  activeCharacter,
+  audioLevel = 0,
+  frequencies = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
 }) => {
   const isEmpty = messages.length === 0;
 
@@ -91,32 +100,32 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Empty State Welcome */}
       {isEmpty ? (
         <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center text-center">
-          {/* Central Animated Voice Orb */}
-          <div className="my-6">
+          {/* Central Animated 3D Plush Character */}
+          <div className="my-4">
             <VoiceOrb
               state={voiceState}
               onOrbClick={isListening ? onStopListening : onStartListening}
               size="lg"
+              characterId={characterId}
+              audioLevel={audioLevel}
             />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 px-3 py-1 text-xs font-semibold text-purple-300 mb-3">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 px-3 py-1 text-xs font-semibold text-purple-300 mb-2">
             <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-            Next-Gen Multilingual Voice Intelligence
+            <span>{activeCharacter ? `${activeCharacter.name} • ${activeCharacter.personality}` : 'AI Companion'}</span>
           </div>
 
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Welcome to <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">MyVoice</span>
+            Hello! Meet <span className="bg-gradient-to-r from-purple-400 via-pink-300 to-cyan-400 bg-clip-text text-transparent">{activeCharacter?.name || 'MyVoice'}</span>
           </h2>
 
           <p className="mt-2 text-sm text-slate-400 max-w-md">
-            Speak or type naturally in <strong className="text-slate-200">English</strong>,{' '}
-            <strong className="text-slate-200">हिन्दी</strong>, or{' '}
-            <strong className="text-slate-200">ಕನ್ನಡ</strong>. Powered by Google Gemini.
+            {activeCharacter?.description || 'Speak or type naturally in English, हिन्दी, or ಕನ್ನಡ. Powered by Google Gemini.'}
           </p>
 
           {/* Voice Controls Bar */}
-          <div className="mt-4 mb-8">
+          <div className="mt-4 mb-6 w-full">
             <VoiceControls
               voiceState={voiceState}
               isListening={isListening}
@@ -128,6 +137,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               onReplay={onReplay}
               hasLastSpoken={hasLastSpoken}
               errorMessage={voiceErrorMessage}
+              activeCharacter={activeCharacter}
+              frequencies={frequencies}
             />
           </div>
 
@@ -170,6 +181,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 onReplay={onReplay}
                 hasLastSpoken={hasLastSpoken}
                 errorMessage={voiceErrorMessage}
+                activeCharacter={activeCharacter}
+                frequencies={frequencies}
               />
             </div>
           )}
