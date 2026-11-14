@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     status: 'healthy',
     name: 'MyVoice AI Platform',
     version: '1.0.0',
-    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
     languages: ['en-US', 'hi-IN', 'kn-IN'],
     services: {
       geminiConfigured,

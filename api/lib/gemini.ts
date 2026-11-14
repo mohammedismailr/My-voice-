@@ -22,11 +22,11 @@ export async function generateGeminiResponse(
     throw new Error('GEMINI_API_KEY is not configured on the server. Please set it in your environment variables.');
   }
 
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const configuredModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const model = genAI.getGenerativeModel({
-    model: modelName,
+    model: configuredModel,
     systemInstruction: SYSTEM_INSTRUCTION,
     generationConfig: {
       temperature: 0.7,

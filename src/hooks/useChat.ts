@@ -4,6 +4,7 @@ import { sendChatMessage } from '../services/chatService';
 import { fetchConversationDetails } from '../services/conversationService';
 import { useAuth } from './useAuth';
 import { generateConversationTitle } from '../utils';
+import { generateUUID, isValidUUID } from '../utils/uuid';
 
 interface UseChatProps {
   activeConversationId: string | null;
@@ -23,6 +24,8 @@ export function useChat({
   const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // Ref to track conversation IDs that were just created locally to prevent redundant reload
+  const justCreatedConvIdRef = useRef<string | null>(null);
 
   // Auto-scroll helper
   const scrollToBottom = useCallback((smooth = true) => {
@@ -36,6 +39,12 @@ export function useChat({
     if (!activeConversationId) {
       setMessages([]);
       setError(null);
+      return;
+    }
+
+    // If this conversation was just initialized by sendMessage, skip redundant fetch
+    if (justCreatedConvIdRef.current === activeConversationId) {
+      justCreatedConvIdRef.current = null;
       return;
     }
 
@@ -77,11 +86,17 @@ export function useChat({
       setIsSending(true);
       setError(null);
 
-      // Create optimistic user message
-      const tempId = `temp-${Date.now()}`;
+      // Ensure valid target UUID v4 for the conversation
+      const targetConvId =
+        activeConversationId && isValidUUID(activeConversationId)
+          ? activeConversationId
+          : generateUUID();
+
+      // Create optimistic user message with valid UUID v4
+      const userMsgId = generateUUID();
       const optimisticUserMsg: Message = {
-        id: tempId,
-        conversation_id: activeConversationId || 'pending',
+        id: userMsgId,
+        conversation_id: targetConvId,
         role: 'user',
         content: cleanContent,
         input_mode: inputMode,
@@ -95,7 +110,7 @@ export function useChat({
       try {
         const response = await sendChatMessage(
           {
-            conversationId: activeConversationId || undefined,
+            conversationId: targetConvId,
             message: cleanContent,
             language,
             inputMode,
@@ -107,11 +122,14 @@ export function useChat({
           throw new Error(response.error || 'Failed to get AI response');
         }
 
-        // If a new conversation was created on the backend
-        if (response.conversationId && response.conversationId !== activeConversationId) {
+        const confirmedConvId = response.conversationId || targetConvId;
+
+        // If a new conversation was created on the backend or locally
+        if (confirmedConvId !== activeConversationId) {
+          justCreatedConvIdRef.current = confirmedConvId;
           const generatedTitle = generateConversationTitle(cleanContent);
           onConversationCreated?.({
-            id: response.conversationId,
+            id: confirmedConvId,
             title: generatedTitle,
             language,
           });
@@ -119,7 +137,7 @@ export function useChat({
 
         // Replace optimistic user message with confirmed messages from backend
         setMessages((prev) => {
-          const filtered = prev.filter((m) => m.id !== tempId);
+          const filtered = prev.filter((m) => m.id !== userMsgId);
           const next = [...filtered];
           if (response.userMessage) {
             next.push(response.userMessage);
@@ -144,7 +162,6 @@ export function useChat({
       } catch (err: any) {
         console.error('Send message failed:', err);
         setError(err.message || 'AI response could not be generated. Please try again.');
-        // Remove optimistic message or leave it flagged
         setIsSending(false);
         return false;
       }

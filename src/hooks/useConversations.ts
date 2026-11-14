@@ -5,6 +5,7 @@ import {
   deleteConversation as deleteConversationApi,
 } from '../services/conversationService';
 import { useAuth } from './useAuth';
+import { DEMO_USER_UUID, isValidUUID } from '../utils/uuid';
 
 export function useConversations() {
   const { user, token } = useAuth();
@@ -79,7 +80,7 @@ export function useConversations() {
         } else {
           const item: Conversation = {
             id: newConv.id,
-            user_id: user?.id || 'demo-user-id',
+            user_id: user?.id && isValidUUID(user.id) ? user.id : DEMO_USER_UUID,
             title: newConv.title,
             language: newConv.language,
             created_at: now,

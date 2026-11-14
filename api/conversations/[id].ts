@@ -1,12 +1,15 @@
 import type { VercelRequest, VercelResponse } from '../types';
 import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer';
+import { demoStore } from '../lib/demoStore';
+import { isValidUUID } from '../lib/uuid';
 
 function extractId(req: VercelRequest): string {
   if (req.query?.id) {
-    return Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+    const rawId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+    return rawId ? rawId.trim() : '';
   }
   const urlParts = (req.url || '').split('?')[0].split('/');
-  return urlParts[urlParts.length - 1] || '';
+  return (urlParts[urlParts.length - 1] || '').trim();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -32,46 +35,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: 'Missing conversation ID parameter.' });
   }
 
-  const client = getSupabaseServerClient();
-  if (!client) {
-    if (req.method === 'GET') {
-      return res.status(200).json({
-        success: true,
-        conversation: {
-          id: conversationId,
-          user_id: user.id,
-          title: 'Demo Conversation',
-          language: 'en-US',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        messages: [],
-      });
-    }
-    if (req.method === 'DELETE') {
-      return res.status(200).json({ success: true });
-    }
-    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
-  }
-
-  // 1. Verify ownership of the conversation
-  const { data: conversation, error: convError } = await client
-    .from('conversations')
-    .select('*')
-    .eq('id', conversationId)
-    .single();
-
-  if (convError || !conversation) {
+  // Gracefully handle non-UUID IDs without throwing database errors
+  if (!isValidUUID(conversationId)) {
     return res.status(404).json({ success: false, error: 'Conversation not found.' });
   }
 
-  if (conversation.user_id !== user.id) {
-    return res.status(403).json({ success: false, error: 'Forbidden: You do not own this conversation.' });
+  const client = getSupabaseServerClient();
+
+  // In demo / offline mode
+  if (!client) {
+    if (req.method === 'GET') {
+      const conv = demoStore.getConversation(conversationId);
+      if (!conv) {
+        return res.status(404).json({ success: false, error: 'Conversation not found.' });
+      }
+      const messages = demoStore.getMessages(conversationId);
+      return res.status(200).json({
+        success: true,
+        conversation: conv,
+        messages,
+      });
+    }
+
+    if (req.method === 'DELETE') {
+      const success = demoStore.deleteConversation(conversationId);
+      return res.status(200).json({ success });
+    }
+
+    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
   }
 
-  // 2. GET messages
+  // Supabase connected mode
   if (req.method === 'GET') {
     try {
+      const { data: conversation, error: convError } = await client
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .maybeSingle();
+
+      if (convError || !conversation) {
+        return res.status(404).json({ success: false, error: 'Conversation not found.' });
+      }
+
+      if (conversation.user_id !== user.id) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not own this conversation.' });
+      }
+
       const { data: messages, error: msgError } = await client
         .from('messages')
         .select('*')
@@ -79,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .order('created_at', { ascending: true });
 
       if (msgError) {
-        console.error('Error fetching messages:', msgError);
+        console.error('[API/Conversations/:id] Error fetching messages:', msgError);
         return res.status(500).json({ success: false, error: 'Failed to retrieve conversation messages.' });
       }
 
@@ -89,21 +99,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         messages: messages || [],
       });
     } catch (err: any) {
-      console.error('Unexpected error in GET conversation:', err);
+      console.error('[API/Conversations/:id] Unexpected error in GET:', err);
       return res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
 
-  // 3. DELETE conversation
   if (req.method === 'DELETE') {
     try {
+      const { data: conversation, error: checkError } = await client
+        .from('conversations')
+        .select('id, user_id')
+        .eq('id', conversationId)
+        .maybeSingle();
+
+      if (checkError || !conversation) {
+        return res.status(404).json({ success: false, error: 'Conversation not found.' });
+      }
+
+      if (conversation.user_id !== user.id) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not own this conversation.' });
+      }
+
       const { error: deleteError } = await client
         .from('conversations')
         .delete()
         .eq('id', conversationId);
 
       if (deleteError) {
-        console.error('Error deleting conversation:', deleteError);
+        console.error('[API/Conversations/:id] Error deleting conversation:', deleteError);
         return res.status(500).json({ success: false, error: 'Failed to delete conversation.' });
       }
 
@@ -112,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         message: 'Conversation deleted successfully.',
       });
     } catch (err: any) {
-      console.error('Unexpected error in DELETE conversation:', err);
+      console.error('[API/Conversations/:id] Unexpected error in DELETE:', err);
       return res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

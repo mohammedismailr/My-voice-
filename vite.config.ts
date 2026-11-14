@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
 import type { IncomingMessage, ServerResponse } from 'http';
 
 function serverlessApiPlugin() {
@@ -12,7 +13,7 @@ function serverlessApiPlugin() {
           return next();
         }
 
-        const urlObj = new URL(req.url, `http://${req.headers.host}`);
+        const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const pathname = urlObj.pathname;
 
         // Enhance response object to match VercelResponse
@@ -84,15 +85,48 @@ function serverlessApiPlugin() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react(), serverlessApiPlugin()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(({ mode }) => {
+  // Load env variables into process.env for Node serverless API handlers
+  const env = loadEnv(mode, process.cwd(), '');
+  for (const [key, value] of Object.entries(env)) {
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+
+  // Also parse .env directly if needed
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf-8');
+      content.split('\n').forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const eqIdx = trimmed.indexOf('=');
+          if (eqIdx > 0) {
+            const k = trimmed.slice(0, eqIdx).trim();
+            const v = trimmed.slice(eqIdx + 1).trim();
+            if (!process.env[k]) {
+              process.env[k] = v;
+            }
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Could not read .env file directly:', e);
+  }
+
+  return {
+    plugins: [react(), serverlessApiPlugin()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
     },
-  },
-  server: {
-    port: 5173,
-    host: true,
-  },
+    server: {
+      port: 5173,
+      host: true,
+    },
+  };
 });

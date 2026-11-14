@@ -20,6 +20,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const DEMO_USER_STORAGE_KEY = 'myvoice_demo_user';
+const DEMO_USER_UUID = '00000000-0000-4000-8000-000000000001';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedDemo) {
         try {
           const parsed = JSON.parse(storedDemo);
+          // Ensure stored user ID is a valid UUID
+          if (parsed.user && (!parsed.user.id || parsed.user.id.startsWith('demo-'))) {
+            parsed.user.id = DEMO_USER_UUID;
+            parsed.profile.id = DEMO_USER_UUID;
+            localStorage.setItem(DEMO_USER_STORAGE_KEY, JSON.stringify(parsed));
+          }
           setUser(parsed.user);
           setProfile(parsed.profile);
         } catch {
@@ -93,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isSupabaseConfigured) {
       // Demo authentication
       const demoUser: User = {
-        id: 'demo-user-id',
+        id: DEMO_USER_UUID,
         email,
         app_metadata: {},
         user_metadata: { full_name: email.split('@')[0] || 'Demo User' },
@@ -101,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: new Date().toISOString(),
       };
       const demoProfile: UserProfile = {
-        id: 'demo-user-id',
+        id: DEMO_USER_UUID,
         display_name: email.split('@')[0] || 'Demo User',
         preferred_language: 'en-US',
         created_at: new Date().toISOString(),
@@ -130,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     if (!isSupabaseConfigured) {
       const demoUser: User = {
-        id: 'demo-user-id',
+        id: DEMO_USER_UUID,
         email,
         app_metadata: {},
         user_metadata: { full_name: displayName || email.split('@')[0] },
@@ -138,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: new Date().toISOString(),
       };
       const demoProfile: UserProfile = {
-        id: 'demo-user-id',
+        id: DEMO_USER_UUID,
         display_name: displayName || email.split('@')[0] || 'Demo User',
         preferred_language: language,
         created_at: new Date().toISOString(),
@@ -203,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const enterDemoMode = () => {
     const demoUser: User = {
-      id: 'demo-guest-id',
+      id: DEMO_USER_UUID,
       email: 'guest@myvoice.ai',
       app_metadata: {},
       user_metadata: { full_name: 'Guest Explorer' },
@@ -211,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString(),
     };
     const demoProfile: UserProfile = {
-      id: 'demo-guest-id',
+      id: DEMO_USER_UUID,
       display_name: 'Guest Explorer',
       preferred_language: 'en-US',
       created_at: new Date().toISOString(),

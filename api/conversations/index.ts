@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '../types';
 import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer';
+import { demoStore } from '../lib/demoStore';
+import { generateUUID, isValidUUID } from '../lib/uuid';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -20,23 +22,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const client = getSupabaseServerClient();
+
+  // In demo/offline mode
   if (!client) {
-    // Demo mode fallback list
-    return res.status(200).json({
-      success: true,
-      conversations: [
-        {
-          id: 'demo-conv-1',
-          user_id: user.id,
-          title: 'Welcome to MyVoice',
-          language: 'en-US',
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ],
-    });
+    if (req.method === 'GET') {
+      const conversations = demoStore.getConversations(user.id);
+      return res.status(200).json({
+        success: true,
+        conversations,
+      });
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+        const title = body.title?.trim() || 'New Conversation';
+        const language = body.language || 'en-US';
+        const convId = body.id && isValidUUID(body.id) ? body.id : generateUUID();
+
+        const conversation = demoStore.createConversation(user.id, title, language, convId);
+        return res.status(201).json({
+          success: true,
+          conversation,
+        });
+      } catch (err: any) {
+        console.error('[API/Conversations Demo] Error creating conversation:', err);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
+      }
+    }
+
+    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
   }
 
+  // Supabase connected mode
   if (req.method === 'GET') {
     try {
       const { data: conversations, error } = await client
@@ -46,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching conversations:', error);
+        console.error('[API/Conversations] Error fetching conversations:', error);
         return res.status(500).json({ success: false, error: 'Failed to retrieve conversations.' });
       }
 
@@ -55,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         conversations: conversations || [],
       });
     } catch (err: any) {
-      console.error('Unexpected error in GET /api/conversations:', err);
+      console.error('[API/Conversations] Unexpected error in GET:', err);
       return res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
@@ -65,10 +83,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
       const title = body.title?.trim() || 'New Conversation';
       const language = body.language || 'en-US';
+      const convId = body.id && isValidUUID(body.id) ? body.id : generateUUID();
 
       const { data: conversation, error } = await client
         .from('conversations')
         .insert({
+          id: convId,
           user_id: user.id,
           title,
           language,
@@ -77,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
 
       if (error || !conversation) {
-        console.error('Error creating conversation:', error);
+        console.error('[API/Conversations] Error creating conversation:', error);
         return res.status(500).json({ success: false, error: 'Failed to create conversation.' });
       }
 
@@ -86,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         conversation,
       });
     } catch (err: any) {
-      console.error('Unexpected error in POST /api/conversations:', err);
+      console.error('[API/Conversations] Unexpected error in POST:', err);
       return res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
