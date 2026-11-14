@@ -1,6 +1,6 @@
-# MyVoice – AI Voice & Conversational Intelligence Platform
+# MyVoice – 3D Plush AI Voice Companion & Intelligence Platform
 
-> **A cutting-edge, multilingual AI voice and text conversational platform powered by Google Gemini, Supabase, and Web Speech APIs.**
+> **A premium, interactive, cute 3D plush AI voice assistant powered by Google Gemini, Supabase, and real-time Web Speech & Audio APIs.**
 
 [![Vite](https://img.shields.io/badge/Vite-6.1-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -9,18 +9,20 @@
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-1.5_Flash-4285F4?logo=google&logoColor=white)](https://ai.google.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_&_Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Serverless_API-000000?logo=vercel&logoColor=white)](https://vercel.com/)
-[![Vitest](https://img.shields.io/badge/Vitest-26_Passed-729B1B?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Vitest-39_Passed-729B1B?logo=vitest&logoColor=white)](https://vitest.dev/)
 
 ---
 
 ## 1. Overview & Vision
 
-**MyVoice** breaks the traditional typing barrier in AI conversations by providing a unified, conversational interface combining:
+**MyVoice** transforms traditional voice AI into an adorable, interactive 3D plush AI companion experience. It brings together:
+- **5 Selectable 3D Plush Companions:** Procedural tactile felt/plush characters with custom identities, accessories, and distinct voices (Mochi, Pip, Cirrus, Lola, and Nova).
+- **Voice-Reactive Animations:** Real-time audio amplitude synchronization driving mouth lip-sync, perking ears, bouncing squash-and-stretch, blinking, and glowing auras.
 - **Natural Voice Interaction:** Browser-native speech recognition (STT) and speech synthesis (TTS).
 - **Conversational Intelligence:** Server-side Google Gemini 1.5 Flash multi-turn context awareness.
 - **Multilingual Support:** Native communication in **English**, **Hindi (हिन्दी)**, and **Kannada (ಕನ್ನಡ)** with automatic script detection and manual language switching.
 - **Persistent Cloud History:** Secured by Supabase PostgreSQL and Row-Level Security (RLS).
-- **Futuristic Animated UI:** Central Framer Motion interactive glowing voice orb and responsive glassmorphism dark theme.
+- **Dual-Mode Dashboard:** Seamless toggle between the immersive **3D Companion Stage** and the **Multi-Turn Chat History**.
 
 ---
 
@@ -195,12 +197,13 @@ npm test
 
 ### Test Results
 ```text
-✓ tests/unit/utils.test.ts (12 tests)
-✓ tests/unit/validation.test.ts (7 tests)
-✓ tests/unit/components.test.tsx (7 tests)
+ ✓ tests/unit/utils.test.ts (12 tests)
+ ✓ tests/unit/validation.test.ts (7 tests)
+ ✓ tests/unit/characters.test.tsx (13 tests)
+ ✓ tests/unit/components.test.tsx (7 tests)
 
-Test Files  3 passed (3)
-     Tests  26 passed (26)
+Test Files  4 passed (4)
+     Tests  39 passed (39)
 ```
 
 To build for production and check TypeScript types:
