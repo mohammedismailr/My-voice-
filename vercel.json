@@ -9,7 +9,16 @@
     }
   ],
   "functions": {
-    "api/**/*.ts": {
+    "api/chat.ts": {
+      "maxDuration": 60
+    },
+    "api/health.ts": {
+      "maxDuration": 30
+    },
+    "api/conversations/index.ts": {
+      "maxDuration": 60
+    },
+    "api/conversations/[id].ts": {
       "maxDuration": 60
     }
   },

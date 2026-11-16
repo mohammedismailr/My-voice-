@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '../types.ts';
-import { authenticateRequest, getSupabaseServerClient } from '../lib/supabaseServer.ts';
-import { demoStore } from '../lib/demoStore.ts';
-import { isValidUUID } from '../lib/uuid.ts';
+import type { VercelRequest, VercelResponse } from '../_types';
+import { authenticateRequest, getSupabaseServerClient, DEMO_USER_UUID } from '../_lib/supabaseServer';
+import { demoStore } from '../_lib/demoStore';
+import { isValidUUID } from '../_lib/uuid';
 
 function extractId(req: VercelRequest): string {
   if (req.query?.id) {
@@ -20,15 +20,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
+  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   const user = await authenticateRequest(req);
-  if (!user) {
-    return res.status(401).json({ success: false, error: 'Unauthorized. Please sign in.' });
-  }
 
   const conversationId = extractId(req);
   if (!conversationId) {
@@ -41,9 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const client = getSupabaseServerClient();
+  const isGuestOrDemo = !client || user.id === DEMO_USER_UUID;
 
-  // In demo / offline mode
-  if (!client) {
+  // In demo / guest mode
+  if (isGuestOrDemo) {
     if (req.method === 'GET') {
       const conv = demoStore.getConversation(conversationId);
       if (!conv) {

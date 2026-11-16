@@ -93,22 +93,6 @@ export function useSpeechRecognition({
     }
 
     try {
-      // Test audio permission using getUserMedia if available
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          // Stop track immediately to free hardware for SpeechRecognition
-          stream.getTracks().forEach((track) => track.stop());
-          setPermissionDenied(false);
-        } catch (permErr: any) {
-          if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
-            setPermissionDenied(true);
-            onError?.('Microphone permission is required. Please allow microphone access in your browser settings.');
-            return;
-          }
-        }
-      }
-
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
       isManuallyStoppedRef.current = false;

@@ -56,15 +56,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const isNearLimit = input.length > 3500;
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto px-4 pb-4">
-      <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-[#171B2B]/95 p-2 shadow-2xl backdrop-blur-xl focus-within:border-purple-500/50 focus-within:shadow-glow-primary transition-all">
+    <div className="relative w-full max-w-4xl mx-auto px-3 sm:px-4 pb-3 sm:pb-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-[#171B2B]/95 p-1.5 sm:p-2 shadow-2xl backdrop-blur-xl focus-within:border-purple-500/50 focus-within:shadow-glow-primary transition-all">
         {/* Microphone Button */}
         {isSpeechSupported && (
           <button
             type="button"
             onClick={handleMicToggle}
             title={isListening ? 'Stop listening' : 'Start speaking'}
-            className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition-all ${
+            className={`flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-xl transition-all ${
               isListening
                 ? 'bg-cyan-500 text-slate-950 shadow-glow-secondary animate-pulse'
                 : 'text-slate-400 hover:bg-white/5 hover:text-cyan-400'
@@ -74,7 +74,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           </button>
         )}
 
-        {/* Text Area */}
+        {/* Text Area (16px on mobile prevents iOS Safari unwanted auto-zoom) */}
         <textarea
           ref={textareaRef}
           value={input}
@@ -83,7 +83,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           placeholder={isListening ? 'Listening... Speak now' : placeholder}
           rows={1}
           disabled={isSending}
-          className="flex-1 max-h-40 resize-none bg-transparent px-2 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none disabled:opacity-50"
+          className="flex-1 max-h-40 resize-none bg-transparent px-2 py-2 text-base sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none disabled:opacity-50"
         />
 
         {/* Send Button */}
@@ -96,7 +96,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           }}
           disabled={isSending || !input.trim() || isOverLimit}
           title="Send message (Enter)"
-          className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition-all ${
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-xl transition-all ${
             input.trim() && !isSending && !isOverLimit
               ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-glow-primary hover:from-purple-500 hover:to-indigo-500'
               : 'bg-white/5 text-slate-600 cursor-not-allowed'

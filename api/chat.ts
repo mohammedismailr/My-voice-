@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import type { VercelRequest, VercelResponse } from './types.ts';
-import { authenticateRequest, getSupabaseServerClient } from './lib/supabaseServer.ts';
-import { generateGeminiResponse, type HistoryTurn } from './lib/gemini.ts';
-import { generateUUID, isValidUUID } from './lib/uuid.ts';
-import { demoStore } from './lib/demoStore.ts';
+import type { VercelRequest, VercelResponse } from './_types';
+import { authenticateRequest, getSupabaseServerClient, DEMO_USER_UUID } from './_lib/supabaseServer';
+import { generateGeminiResponse, type HistoryTurn } from './_lib/gemini';
+import { generateUUID, isValidUUID } from './_lib/uuid';
+import { demoStore } from './_lib/demoStore';
 
 // Safe validation schema: pre-processes conversationId and rejects invalid payload formats gracefully
 const chatRequestSchema = z.object({
@@ -32,6 +32,7 @@ const chatRequestSchema = z.object({
 });
 
 function parseBody(req: VercelRequest): any {
+  if (!req.body) return {};
   if (typeof req.body === 'string') {
     try {
       return JSON.parse(req.body);
@@ -39,7 +40,10 @@ function parseBody(req: VercelRequest): any {
       return {};
     }
   }
-  return req.body || {};
+  if (typeof req.body === 'object') {
+    return req.body;
+  }
+  return {};
 }
 
 function generateCleanTitle(text: string): string {
@@ -51,7 +55,7 @@ function generateCleanTitle(text: string): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Set CORS headers
+  // Set CORS and security headers immediately
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -59,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
+  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -69,15 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. Authenticate user
+    // 1. Authenticate user (falls back to guest user so mobile visitors can chat immediately)
     const user = await authenticateRequest(req);
-    if (!user) {
-      console.warn('[API/Chat] Unauthorized request attempt');
-      return res.status(401).json({
-        success: false,
-        error: 'Unauthorized. Your session has expired. Please sign in again.',
-      });
-    }
 
     // 2. Validate request body with Zod
     const rawBody = parseBody(req);
@@ -90,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { conversationId: rawConvId, message, language, inputMode, model: requestedModel, companionId } = parseResult.data;
     const client = getSupabaseServerClient();
+    const isGuestOrDemo = !client || user.id === DEMO_USER_UUID;
 
     // 3. Resolve Conversation UUID:
     // Ensure we always have a valid RFC 4122 v4 UUID
@@ -104,9 +103,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // =========================================================================
-    // IN-MEMORY / DEMO MODE (When Supabase is not configured)
+    // IN-MEMORY / DEMO / GUEST MODE (When Supabase is absent or user is a guest)
     // =========================================================================
-    if (!client) {
+    if (isGuestOrDemo) {
       console.log(`[API/Chat Demo Mode] Conversation ID: ${targetConvId}, User: ${user.id}`);
 
       // Ensure conversation exists in demo store
@@ -135,13 +134,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         historyTurns.push({ role: m.role, content: m.content });
       }
 
-      // Generate AI response with Gemini (or fallback if key not configured)
+      // Generate AI response with Gemini (or friendly fallback if key not configured)
       let aiText = '';
       try {
         aiText = await generateGeminiResponse(message, historyTurns, language, requestedModel, companionId);
       } catch (geminiErr: any) {
         console.warn('[API/Chat Demo Mode] Gemini API:', geminiErr.message);
-        aiText = `Hello! I am your AI companion. I heard: "${message}". (To activate live cloud AI, please check GEMINI_API_KEY in your environment variables).`;
+        aiText = `Hello! I am your 3D plush companion. I received your message: "${message}". Please ensure GEMINI_API_KEY is configured in your deployment environment variables for live cloud AI.`;
       }
 
       // Save assistant message in demo store
@@ -163,11 +162,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // =========================================================================
-    // PRODUCTION MODE (Supabase Connected)
+    // PRODUCTION MODE (Supabase Authenticated User)
     // =========================================================================
-    // Check if conversation already exists in database
     let existingConversation = null;
-    if (!isNewConversation) {
+    if (!isNewConversation && client) {
       const { data: conv, error: convError } = await client
         .from('conversations')
         .select('id, user_id, language')

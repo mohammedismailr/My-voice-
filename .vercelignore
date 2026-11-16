@@ -1,0 +1,5 @@
+# Ignore helper libraries from being mapped as Vercel serverless function endpoints
+api/_lib/
+api/_types.ts
+api/lib/
+api/types.ts

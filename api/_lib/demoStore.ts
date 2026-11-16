@@ -1,4 +1,4 @@
-import { generateUUID } from './uuid.ts';
+import { generateUUID } from './uuid';
 
 export interface DemoMessage {
   id: string;

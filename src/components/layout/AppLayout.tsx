@@ -18,7 +18,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   modals,
 }) => {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#090B14] text-[#F8FAFC]">
+    <div className="flex h-screen h-[100dvh] w-screen overflow-hidden bg-[#090B14] text-[#F8FAFC] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       {/* Sidebar (Desktop persistent + Mobile drawer) */}
       {sidebar}
 

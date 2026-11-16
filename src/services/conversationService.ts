@@ -14,7 +14,7 @@ async function safeParseResponse(response: Response, defaultError: string): Prom
     const rawText = await response.text();
     let cleanMessage = rawText.trim();
     if (cleanMessage.includes('FUNCTION_INVOCATION_FAILED')) {
-      cleanMessage = 'Backend service is initializing. Please retry in a moment.';
+      cleanMessage = 'Backend service is starting up. Please retry in a moment.';
     } else if (cleanMessage.length > 200 || cleanMessage.startsWith('<')) {
       cleanMessage = `${defaultError} (${response.status})`;
     }
